@@ -193,7 +193,7 @@ draw_thick_lines :: proc(
 		{p3, outer, {0, 0}},
 		{p4, inner, {0, 0}},
 	}
-	indicies := [6]i32{0, 1, 2, 0, 2, 3}
+	indicies := [6]i32{0, 1, 2, 2, 3, 0}
 	_ = sdl3.RenderGeometry(renderer, nil, &verts[0], 4, &indicies[0], 6)
 }
 
