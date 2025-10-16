@@ -40,65 +40,118 @@ main :: proc() {
 		position = {x = 0, y = 0},
 		zoom = 1.0,
 	}
-
 	regions := []RegionZone {
 		{
 			name = "US-East",
 			color = {80, 150, 255, 80},
-			rect = sdl3.FRect{x = 0, y = 0, w = 700, h = 500},
+			rect = sdl3.FRect{x = 0, y = 0, w = 600, h = 450},
 		},
 		{
 			name = "US-West",
 			color = {80, 255, 150, 80},
-			rect = sdl3.FRect{x = 800, y = 0, w = 700, h = 500},
+			rect = sdl3.FRect{x = 700, y = 0, w = 600, h = 450},
+		},
+		{
+			name = "South-America",
+			color = {255, 255, 90, 80},
+			rect = sdl3.FRect{x = 1400, y = 0, w = 600, h = 450},
 		},
 		{
 			name = "EU-Central",
 			color = {255, 120, 90, 80},
-			rect = sdl3.FRect{x = 0, y = 550, w = 700, h = 500},
+			rect = sdl3.FRect{x = 0, y = 500, w = 600, h = 450},
+		},
+		{
+			name = "Africa",
+			color = {255, 160, 150, 80},
+			rect = sdl3.FRect{x = 700, y = 500, w = 600, h = 450},
 		},
 		{
 			name = "Asia-Pacific",
 			color = {255, 200, 100, 80},
-			rect = sdl3.FRect{x = 800, y = 550, w = 700, h = 500},
+			rect = sdl3.FRect{x = 1400, y = 500, w = 600, h = 450},
 		},
 	}
 
 	nodes := []Node {
-		{1, "Client_US_East", .Client, {150, 200}, false, false, nil},
-		{2, "Client_US_West", .Client, {950, 220}, false, false, nil},
-		{3, "Client_EU", .Client, {200, 700}, false, false, nil},
-		{4, "Client_APAC", .Client, {950, 720}, false, false, nil},
-		{5, "Gateway_US_East", .Gateway, {400, 250}, false, false, nil},
-		{6, "Gateway_US_West", .Gateway, {1150, 230}, false, false, nil},
-		{7, "Gateway_EU", .Gateway, {450, 730}, false, false, nil},
-		{8, "Gateway_APAC", .Gateway, {1200, 730}, false, false, nil},
-		{9, "GameServer_US_East", .Region_Server, {600, 280}, false, false, nil},
-		{10, "GameServer_US_West", .Region_Server, {1350, 260}, false, false, nil},
-		{11, "GameServer_EU", .Region_Server, {650, 780}, false, false, nil},
-		{12, "GameServer_APAC", .Region_Server, {1350, 760}, false, false, nil},
-		{13, "Global_Matchmaker", .Matchmaker, {700, 400}, false, false, nil},
-		{14, "Central_Database", .Database, {800, 420}, false, false, nil},
+		// Clients
+		{1, "Client_US_East", .Client, {120, 180}, false, false, nil},
+		{2, "Client_US_West", .Client, {820, 160}, false, false, nil},
+		{3, "Client_SA", .Client, {1500, 150}, false, false, nil},
+		{4, "Client_EU", .Client, {160, 640}, false, false, nil},
+		{5, "Client_AFR", .Client, {860, 640}, false, false, nil},
+		{6, "Client_APAC", .Client, {1560, 640}, false, false, nil},
+
+		// Regional Gateways
+		{7, "Gateway_US_East", .Gateway, {320, 220}, false, false, nil},
+		{8, "Gateway_US_West", .Gateway, {1010, 200}, false, false, nil},
+		{9, "Gateway_SA", .Gateway, {1620, 210}, false, false, nil},
+		{10, "Gateway_EU", .Gateway, {360, 690}, false, false, nil},
+		{11, "Gateway_AFR", .Gateway, {960, 690}, false, false, nil},
+		{12, "Gateway_APAC", .Gateway, {1630, 690}, false, false, nil},
+
+		// Edge Servers / Region Servers
+		{13, "Edge_US_East", .Region_Server, {440, 240}, false, false, nil},
+		{14, "Edge_US_West", .Region_Server, {1110, 230}, false, false, nil},
+		{15, "Edge_SA", .Region_Server, {1770, 230}, false, false, nil},
+		{16, "Edge_EU", .Region_Server, {470, 710}, false, false, nil},
+		{17, "Edge_AFR", .Region_Server, {1100, 710}, false, false, nil},
+		{18, "Edge_APAC", .Region_Server, {1780, 710}, false, false, nil},
+
+		// CDN / Relay Layer
+		{19, "Relay_North", .Gateway, {830, 350}, false, false, nil},
+		{20, "Relay_South", .Gateway, {1100, 550}, false, false, nil},
+
+		// Global Services
+		{21, "Global_Matchmaker", .Matchmaker, {950, 400}, false, false, nil},
+		{22, "Central_Database", .Database, {970, 430}, false, false, nil},
 	}
 
 	edges := []Edge {
-		{1, &nodes[0], &nodes[4], 20, 0},
-		{2, &nodes[1], &nodes[5], 22, 0},
-		{3, &nodes[2], &nodes[6], 25, 0},
-		{4, &nodes[3], &nodes[7], 30, 0},
-		{5, &nodes[4], &nodes[8], 5, 0},
-		{6, &nodes[5], &nodes[9], 5, 0},
-		{7, &nodes[6], &nodes[10], 5, 0},
-		{8, &nodes[7], &nodes[11], 5, 0},
-		{9, &nodes[4], &nodes[12], 40, 0}, // Gateways to matchmaker
-		{10, &nodes[5], &nodes[12], 50, 0},
-		{11, &nodes[6], &nodes[12], 70, 0},
-		{12, &nodes[7], &nodes[12], 90, 0},
-		{13, &nodes[12], &nodes[13], 5, 0},
-		{14, &nodes[8], &nodes[13], 15, 0},
-		{15, &nodes[9], &nodes[13], 18, 0},
-		{16, &nodes[10], &nodes[13], 20, 0},
-		{17, &nodes[11], &nodes[13], 25, 0},
+		// Clients → Regional Gateways
+		{1, &nodes[0], &nodes[6], 20, 0},
+		{2, &nodes[1], &nodes[7], 22, 0},
+		{3, &nodes[2], &nodes[8], 28, 0},
+		{4, &nodes[3], &nodes[9], 25, 0},
+		{5, &nodes[4], &nodes[10], 27, 0},
+		{6, &nodes[5], &nodes[11], 30, 0},
+
+		// Gateways → Local Edge Servers
+		// {7, &nodes[6], &nodes[12], 5, 0},
+		// {8, &nodes[7], &nodes[13], 5, 0},
+		// {9, &nodes[8], &nodes[14], 6, 0},
+		// {10, &nodes[9], &nodes[15], 6, 0},
+		// {11, &nodes[10], &nodes[16], 6, 0},
+		// {12, &nodes[11], &nodes[17], 7, 0},
+
+		// Gateways → Relay Layer
+		// {13, &nodes[6], &nodes[18], 30, 0},
+		// {14, &nodes[7], &nodes[18], 35, 0},
+		// {15, &nodes[8], &nodes[19], 40, 0},
+		// {16, &nodes[9], &nodes[19], 50, 0},
+		// {17, &nodes[10], &nodes[19], 60, 0},
+		// {18, &nodes[11], &nodes[19], 70, 0},
+		// {13, &nodes[6], &nodes[18], 30, 0},
+		// {14, &nodes[7], &nodes[18], 35, 0},
+		// {15, &nodes[8], &nodes[19], 40, 0},
+		// {16, &nodes[9], &nodes[19], 50, 0},
+		// {17, &nodes[10], &nodes[19], 60, 0},
+		// {18, &nodes[11], &nodes[19], 70, 0},
+
+		// Relay Layer → Global Services
+		{19, &nodes[18], &nodes[20], 15, 0},
+		{20, &nodes[19], &nodes[20], 18, 0},
+
+		// Global_Matchmaker → Database
+		{21, &nodes[20], &nodes[21], 5, 0},
+
+		// RegionServers → Database directly (for stats sync)
+		// {22, &nodes[12], &nodes[21], 15, 0},
+		// {23, &nodes[13], &nodes[21], 15, 0},
+		// {24, &nodes[14], &nodes[21], 18, 0},
+		// {25, &nodes[15], &nodes[21], 20, 0},
+		// // {26, &nodes[16], &nodes[21], 22, 0},
+		// {27, &nodes[17], &nodes[21], 24, 0},
 	}
 
 	for running {
