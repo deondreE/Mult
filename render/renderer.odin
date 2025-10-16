@@ -6,10 +6,6 @@ Color :: struct {
 	r, g, b: u8,
 }
 
-Vector2 :: struct {
-	x, y: f32,
-}
-
 Renderer :: struct {
 	window:      ^sdl3.Window,
 	renderer:    ^sdl3.Renderer,

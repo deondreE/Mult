@@ -145,6 +145,7 @@ bezier_point :: proc(points: []Vector2, t: f32) -> Vector2 {
 	result := Vector2{0, 0}
 
 	for i in 0 ..< len(points) {
+		// coeff = C(n, i) * (1-t)^(n-i) * t^i
 		coeff := binomial_coeff(n, i) * math.pow(1 - t, f32(n - i)) * math.pow(t, f32(i))
 		result.x += coeff * points[i].x
 		result.y += coeff * points[i].y
@@ -165,6 +166,37 @@ binomial_coeff :: proc(n, k: int) -> f32 {
 	return res
 }
 
+draw_thick_lines :: proc(
+	renderer: ^sdl3.Renderer,
+	a, b: Vector2,
+	thickness: f32,
+	color: sdl3.FColor,
+) {
+	dx := b.x - a.x
+	dy := b.y - a.y
+	len := math.sqrt(dx * dx + dy * dy)
+
+	nx := -dy / len
+	ny := dx / len
+	half := thickness * 0.5
+	inner := color; inner.a = 255 // center opaque
+	outer := color; outer.a = 40
+
+	p1 := sdl3.FPoint{a.x + nx * half, a.y + ny * half}
+	p2 := sdl3.FPoint{a.x - nx * half, a.y - ny * half}
+	p3 := sdl3.FPoint{b.x - nx * half, b.y - ny * half}
+	p4 := sdl3.FPoint{b.x + nx * half, b.y + ny * half}
+
+	verts := [4]sdl3.Vertex {
+		{p1, inner, {0, 0}},
+		{p2, outer, {0, 0}},
+		{p3, outer, {0, 0}},
+		{p4, inner, {0, 0}},
+	}
+	indicies := [6]i32{0, 1, 2, 0, 2, 3}
+	_ = sdl3.RenderGeometry(renderer, nil, &verts[0], 4, &indicies[0], 6)
+}
+
 draw_edge :: proc(renderer: ^sdl3.Renderer, edge: ^Edge, cam: ^Camera2D, font: ^ttf.Font) {
 	if edge.source == nil || edge.target == nil {
 		return
@@ -173,34 +205,81 @@ draw_edge :: proc(renderer: ^sdl3.Renderer, edge: ^Edge, cam: ^Camera2D, font: ^
 	s := edge.source.position
 	t := edge.target.position
 
-	edge_index_offset := ((edge.source.id + edge.target.id) % 3) - 1
+	edge_index_offset := ((cast(int)(edge.source.id + edge.target.id)) % 3) - 1
 
-	dx := t.x - s.x
-	dy := t.y - s.y
-	dist := math.sqrt(dx * dx + dy * dy)
-	if dist < 1 do dist = 1
-
-	control_offset := clamp(dist * 0.25, 40.0, 180.0)
-	curve_y_offset := f32(edge_index_offset) * clamp(dist * 0.05, 20.0, 60.0)
-
-	// Define control points (same as before)
-	control_points := [4]Vector2 {
-		s,
-		{s.x + control_offset, s.y + curve_y_offset},
-		{t.x - control_offset, t.y + curve_y_offset},
-		t,
+	dx_st := t.x - s.x
+	dy_st := t.y - s.y
+	dist_st := math.sqrt(dx_st * dx_st + dy_st * dy_st)
+	MIN_NORMALIZED_DIST :: 1e-6
+	if dist_st < MIN_NORMALIZED_DIST {
+		a_screen := app_to_screen(cam, s)
+		b_screen := app_to_screen(cam, t)
+		line_color := sdl3.FColor{160.0 / 255.0, 160.0 / 255.0, 160.0 / 255.0, 255.0 / 255.0}
+		draw_thick_lines(renderer, a_screen, b_screen, 3.0, line_color)
+		return
 	}
 
-	segments :: 24
-	prev := bezier_point(control_points[:], 0.0)
-	sdl3.SetRenderDrawColor(renderer, 160, 160, 160, 255)
+	MIN_EFFECTED_DIST :: 20.0
+	_ = math.max(dist_st, MIN_EFFECTED_DIST)
 
-	for i in 1 ..< segments {
+	// dir_st_x := dx_st / dist_st
+	// dir_st_y := dy_st / dist_st
+
+	perp_x := -dx_st / dist_st
+	perp_y := dx_st / dist_st
+
+	ARC_TENSION_FACTOR :: 0.2
+	MAX_ARC_HEIGHT :: 150.0
+	SEPARATION_TENSION_FACTOR :: 0.05
+	MAX_SEPARATION_HEIGHT :: 60.0
+
+	arc_strength := clamp(dist_st * ARC_TENSION_FACTOR, 0.0, MAX_ARC_HEIGHT) // How much it bends off the straight line
+	arc_separation :=
+		f32(edge_index_offset) *
+		clamp(dist_st * SEPARATION_TENSION_FACTOR, 0.0, MAX_SEPARATION_HEIGHT) // How much it shifts for parallel lines
+
+
+	mid_s_t := Vector2{(s.x + t.x) * 0.5, (s.y + t.y) * 0.5}
+	p1_control_point := Vector2 {
+		mid_s_t.x + (perp_x * (arc_strength + arc_separation)),
+		mid_s_t.y + (perp_y * (arc_strength + arc_separation)),
+	}
+	control_points := [3]Vector2{s, p1_control_point, t}
+
+	// --- DEBUG: Print control point coordinates ---
+	// fmt.eprintf("DEBUG: Edge %d->%d\n", edge.source.id, edge.target.id)
+	// fmt.eprintf("       P0: (%.1f, %.1f)\n", s.x, s.y)
+	// fmt.eprintf(
+	// 	"       P1: (%.1f, %.1f) [Arc:%.1f, Sep:%.1f]\n",
+	// 	p1_control_point.x,
+	// 	p1_control_point.y,
+	// 	arc_strength,
+	// 	arc_separation,
+	// )
+	// fmt.eprintf("       P2: (%.1f, %.1f)\n", t.x, t.y)
+	// --- END DEBUG ---
+
+	segments :: 100
+	prev := bezier_point(control_points[:], 0.0)
+	line_color := sdl3.FColor{160.0 / 255.0, 160.0 / 255.0, 160.0 / 255.0, 255.0 / 255.0}
+
+	for i in 1 ..= segments {
 		u := f32(i) / f32(segments)
+
 		next := bezier_point(control_points[:], u)
+		if math.is_nan(next.x) || math.is_nan(next.y) {
+			fmt.eprintf(
+				"ERROR: NaN in bezier_point output at u=%.2f for edge %d->%d\n",
+				u,
+				edge.source.id,
+				edge.target.id,
+			)
+			break // Stop drawing this corrupted line
+		}
 		a := app_to_screen(cam, prev)
 		b := app_to_screen(cam, next)
-		sdl3.RenderLine(renderer, a.x, a.y, b.x, b.y)
+		// sdl3.RenderLine(renderer, a.x, a.y, b.x, b.y)
+		draw_thick_lines(renderer, a, b, 3.0, line_color)
 		prev = next
 	}
 
