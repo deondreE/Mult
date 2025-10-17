@@ -48,7 +48,7 @@ init_sdl :: proc() -> bool {
 	}
 
 	window = sdl3.CreateWindow(
-		"T3 Chat Engine Viewport",
+		"Engine Viewport",
 		window_width,
 		window_height,
 		sdl3.WINDOW_RESIZABLE,
