@@ -23,7 +23,7 @@ init :: proc(window_title: string, width, height: i32) -> Renderer {
 	sdl3.GL_SetAttribute(sdl3.GLAttr.CONTEXT_PROFILE_MASK, 0)
 
 	flags := sdl3.WINDOW_OPENGL | sdl3.WINDOW_RESIZABLE
-	window := sdl3.CreateWindow("test string", width, height, flags)
+	window := sdl3.CreateWindow("Mult Engine", width, height, flags)
 	if window == nil {
 		panic("Failed to create SDL3 window")
 	}
