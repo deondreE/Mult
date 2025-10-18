@@ -1,5 +1,6 @@
 package render
 
+import "core:math"
 import gl "vendor:OpenGL"
 import "vendor:sdl3"
 
@@ -62,6 +63,38 @@ shader_program: u32
 vao: u32
 vbo: u32
 ebo: u32
+circle_vao, circle_vbo: u32
+circle_indices_count: int
+
+init_circle_buffers :: proc(segments: int = 64) {
+	gl.GenVertexArrays(1, &circle_vao)
+	gl.GenBuffers(1, &circle_vbo)
+
+	// Build a triangle fan: center + N points on the circumference
+	vertex_count := segments + 2 // center + circumference + repeat first
+	vertices := make([]f32, vertex_count * 2, context.temp_allocator)
+
+	vertices[0] = 0.0
+	vertices[1] = 0.0
+	for i in 1 ..< vertex_count {
+		angle := 2.0 * math.PI * f32(i - 1) / f32(segments)
+		vertices[i * 2 + 0] = math.cos(angle) * 0.5
+		vertices[i * 2 + 1] = math.sin(angle) * 0.5
+	}
+	circle_indices_count = vertex_count
+
+	gl.BindVertexArray(circle_vao)
+	gl.BindBuffer(gl.ARRAY_BUFFER, circle_vbo)
+	gl.BufferData(
+		gl.ARRAY_BUFFER,
+		len(vertices) * size_of(f32),
+		raw_data(vertices),
+		gl.STATIC_DRAW,
+	)
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 2 * size_of(f32), 0)
+	gl.BindVertexArray(0)
+}
 
 init_quad_buffers :: proc() {
 	vertex_source := "#version 330 core\nlayout(location=0) in vec2 aPos; \nvoid main(){ gl_Position = vec4(aPos,0.0,1.0); }"
@@ -110,5 +143,34 @@ render_quad :: proc(r: ^Renderer, pos: Vector2, size: Vector2, color: Color) {
 
 	gl.BindVertexArray(vao)
 	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+	gl.BindVertexArray(0)
+}
+
+// TODO: add uniform mat4 u_transform;
+//gl_Position = u_transform * vec4(aPos,0.0,1.0);
+// in vertex shader
+render_circle :: proc(r: ^Renderer, pos: Vector2, radius: f32, color: Color) {
+	gl.UseProgram(shader_program)
+
+	width, height: i32
+	sdl3.GetWindowSize(r.window, &width, &height)
+
+	x := (pos.x / f32(width / 2)) - 1.0
+	y := 1.0 - (pos.y / f32(height / 2))
+	s := radius / f32(width / 2)
+	t := radius / f32(height / 2)
+
+	loc := gl.GetUniformLocation(shader_program, "uColor")
+	gl.Uniform3f(loc, color.r, color.g, color.b)
+
+	// Simple transform baked into vertex shader; scale by s,t translate by x,y
+	model := [16]f32{s, 0, 0, 0, 0, t, 0, 0, 0, 0, 1, 0, x, y, 0, 1}
+	locTransform := gl.GetUniformLocation(shader_program, "u_transform")
+	if locTransform >= 0 {
+		gl.UniformMatrix4fv(locTransform, 1, false, &model[0])
+	}
+
+	gl.BindVertexArray(circle_vao)
+	gl.DrawArrays(gl.TRIANGLE_FAN, 0, i32(circle_indices_count))
 	gl.BindVertexArray(0)
 }
